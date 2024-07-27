@@ -1,41 +1,46 @@
-FROM debian
+# 使用官方的 Node.js Debian 镜像作为基础镜像
+FROM node:18-buster
 
-WORKDIR /dashboard
+# 设置工作目录
+WORKDIR /app
 
-# Install required packages
-RUN apt-get update && \
-    apt-get -y install openssh-server wget iproute2 vim git cron unzip supervisor nginx sqlite3 curl && \
-    # Install Node.js from NodeSource
-    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
-    apt-get install -y nodejs && \
-    node -v && \
-    npm -v && \
-    # Configure Git settings
-    git config --global core.bigFileThreshold 1k && \
-    git config --global core.compression 0 && \
-    git config --global advice.detachedHead false && \
-    git config --global pack.threads 1 && \
-    git config --global pack.windowMemory 50m && \
-    # Clean up
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
-
-# Copy package.json and package-lock.json (if available)
+# 复制 package.json 和 package-lock.json（如果有的话）
 COPY package*.json ./
 
-# Install Node.js dependencies
+# 安装 Node.js 依赖
 RUN npm install
 
-# Copy the rest of the application files
-COPY index*.js ./
+# 安装 Puppeteer 运行所需的库和 Chromium 浏览器
+RUN apt-get update && apt-get install -y \
+    chromium \
+    libnss3 \
+    fonts-liberation \
+    libappindicator3-1 \
+    libatk-bridge2.0-0 \
+    libatk1.0-0 \
+    libcups2 \
+    libx11-xcb1 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxrandr2 \
+    libxss1 \
+    libxtst6 \
+    lsb-release \
+    xdg-utils \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
 
-# Expose the necessary port (if needed)
-EXPOSE 3000
+# 设置 Puppeteer 使用的 Chromium 路径
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
-RUN  echo "#!/usr/bin/env bash\n\n\
-bash <(wget -qO- https://raw.githubusercontent.com/Fscarmon/nodejs_nezha_server/main/init.sh)" > entrypoint.sh &&\
-    chmod +x entrypoint.sh
+# 复制应用程序代码
+COPY . .
+
+# 暴露应用程序端口
+EXPOSE 7860
+USER 1000
+
+# 启动应用程序
+CMD ["node", "index.js"]
 
 
-# Set the entrypoint
-ENTRYPOINT ["/dashboard/entrypoint.sh"]
